@@ -1,3 +1,5 @@
+import 'dart:ffi' as ffi;
+
 import 'package:flutter/material.dart';
 import 'package:cbc_app/core/constants.dart';
 import 'package:cbc_app/utils/colors.dart';
@@ -21,20 +23,21 @@ class LoginFormState extends State<Login> {
    final user = _userController.text;
     final password = _passwordController.text;
     await _authRepository.fetchCredentials(user, password);
+    int code = _authRepository.dataCode;
 
-    // if (token != null && token.isNotEmpty) {
+    if (code == 0) {
 
-    //   // Aquí puedes manejar la respuesta del login
-    //   // ignore: use_build_context_synchronously
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text('Inicio de sesión exitoso')),
-    //   );
-    // } else {
-    //   // ignore: use_build_context_synchronously
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text('Error al iniciar sesión')),
-    //   );
-    // }
+      // Aquí puedes manejar la respuesta del login
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicio de sesión exitoso')),
+      );
+    } else {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al iniciar sesión')),
+      );
+    }
   }
 
   @override

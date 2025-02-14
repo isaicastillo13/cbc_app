@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
@@ -6,62 +7,64 @@ import 'package:flutter/services.dart';
 class AuthRepository {
   final String baseUrl = 'https://web.smrey.net:447/api';
 
-    /// 🔹 Variables globales
+  /// 🔹 Variables globales
   String usr = '';
   String key = '';
 
-  String user = '';
+  String username = '';
   String password = '';
+  int dataCode = 0;
+  // String token = '';
 
-  
+  /// 🔥 Método para obtener credenciales desde archivos remotos y validar usuario
+  Future<Map<String, dynamic>?> fetchCredentials(String user, String pass) async {
+  try {
+    // Leer los archivos locales
+    final userContent = await rootBundle.loadString('assets/user.txt');
+    final keyContent = await rootBundle.loadString('assets/key.txt');
 
-  /// 🔥 Método para obtener credenciales desde archivos remotos
-  /// 🔥 Leer archivos locales en `assets`
-  Future<void> fetchCredentials(String user, String pass) async {
-    try {
-      // Leer los archivos locales
-      final userContent = await rootBundle.loadString('assets/user.txt');
-      final keyContent = await rootBundle.loadString('assets/key.txt');
+    usr = userContent.trim();
+    key = keyContent.trim();
 
-      // Eliminar espacios en blanco y asignar valores
-      usr = userContent.trim();
-      key = keyContent.trim();
+    username = user;
+    password = pass;
 
-      user = user;
-      password = pass;
+    // 🔥 Ahora `authenticate` devuelve `data`, no solo el token
+    final data = await authenticate(usr, key);
 
-      // Ahora puedes usarlos para autenticarte
-       await authenticate(user, password);
-    } catch (error) {
-      // print('Error al leer archivos: $error');
-    }
+    return data; // 🔥 Devuelve la data completa después de validar el usuario
+  } catch (error) {
+    throw Exception('Error al leer archivos: $error');
   }
+}
+
 
   /// 🔹 Método para autenticar y obtener un token
-  Future<String?> authenticate(String user, String pass) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/authenticate'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({"Username": user, "Password": pass}),
-      );
+  Future<Map<String, dynamic>?> authenticate(String usr, String key) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/authenticate'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({"Username": usr, "Password": key}),
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        await validarUsuario(data['detail']['token'], user, pass);
-        // return data['detail']['token']; // 🔥 Devuelve el token
-      } else {
-        throw Exception("Error en la autenticación: ${response.body}");
-      }
-    } catch (e) {
-      // print('Error en authenticate: $e');
-      return null;
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      String token = data['detail']['token']; // Guardar token
+
+      // 🔹 Asegurarse de esperar la validación antes de continuar
+      return await validarUsuario(token); // 🔥 Ahora authenticate devuelve la data validada
+    } else {
+      throw Exception("Error en la autenticación: ${response.body}");
     }
+  } catch (e) {
     return null;
   }
+}
+
 
   /// 🔹 Método para validar usuario con token
-  Future<Map<String, dynamic>?> validarUsuario(String token, String username, String password) async {
+  Future<Map<String, dynamic>?> validarUsuario(String token) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/ValidateUser'),
@@ -71,11 +74,15 @@ class AuthRepository {
         },
         body: jsonEncode({"userName": username, "password": password}),
       );
+        print(response.body);
+        final responseData = jsonDecode(response.body);
+        dataCode = responseData['code'] as int;
+
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        var data = jsonDecode(response.body);
         if (data['code'] == 0) {
-          // Guardamos datos en SharedPreferences en lugar de sessionStorage
+          // Guardamos datos en SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString("num_Empleado", data['detail']['employeeid']);
           await prefs.setBool("is_Active", data['detail']['isActive']);
@@ -83,21 +90,20 @@ class AuthRepository {
           await prefs.setString("usr", username);
           await prefs.setString("code", password);
           await prefs.setBool("is_validated", true);
-          return data;
-        } else {
-          throw Exception(data['message']);
+          await obtenerPerfiles(username, token); // 🔥 Obtener perfiles
         }
+        
+        return null; // 🔥 Devuelve la data completa
       } else {
         throw Exception("Error ${response.statusCode}: ${response.body}");
       }
     } catch (e) {
-      // print("Error en validarUsuario: $e");
       return null;
     }
   }
 
   /// 🔹 Obtener perfiles del usuario
-  Future<void> obtenerPerfiles(String username, String token) async {
+  Future<void> obtenerPerfiles(String username, token) async {
     try {
       final response = await http.post(
         Uri.parse("https://revista.smrey.net:472/InfoForm.svc/getuserprofile"),
@@ -113,21 +119,12 @@ class AuthRepository {
         if (data.isNotEmpty) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString("profile_id", data[0]['Pid']);
-
-          // Redirección basada en la URL previa
-          String? lastUrl = prefs.getString("lasturl");
-          if (lastUrl != null) {
-            prefs.remove("lasturl");
-            // Aquí manejar la redirección con Navigator.pushNamed()
-          } else {
-            // Redirigir al home
-          }
         }
       } else {
         throw Exception("Error ${response.statusCode}: ${response.body}");
       }
     } catch (e) {
-      // print("Error al obtener perfiles: $e");
+      print("Error al obtener perfiles: $e");
     }
   }
 }
