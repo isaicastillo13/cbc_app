@@ -1,5 +1,3 @@
-import 'dart:ffi' as ffi;
-
 import 'package:flutter/material.dart';
 import 'package:cbc_app/core/constants.dart';
 import 'package:cbc_app/utils/colors.dart';
@@ -123,6 +121,7 @@ class LoginFormState extends State<Login> {
   Widget _builduserField() {
     return TextFormField(
       controller: _userController,
+      style: const TextStyle(color: textColor),
       decoration: InputDecoration(
         labelText: 'user',
         labelStyle: const TextStyle(color: textColor),
@@ -143,29 +142,47 @@ class LoginFormState extends State<Login> {
 
   /// Campo de Contraseña con validación
   Widget _buildPasswordField() {
-    return TextFormField(
-      controller: _passwordController,
-      decoration: InputDecoration(
-        labelText: 'Contraseña',
-        labelStyle: const TextStyle(color: textColor),
-        enabledBorder:OutlineInputBorder(
-          borderSide: const BorderSide(color: textColor),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color:textColor),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        prefixIcon: const Icon(Icons.lock, color: textColor),
-      ),
-      obscureText: true,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Por favor, ingresa tu contraseña';
-        } else if (value.length < 6) {
-          return 'La contraseña debe tener al menos 6 caracteres';
-        }
-        return null;
+    bool _obscureText = true;
+
+    return StatefulBuilder(
+      builder: (BuildContext context, StateSetter setState) {
+        return TextFormField(
+          controller: _passwordController,
+      style: const TextStyle(color: textColor),
+          decoration: InputDecoration(
+            labelText: 'Contraseña',
+            labelStyle: const TextStyle(color: textColor),
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: textColor),
+              borderRadius: BorderRadius.circular(100),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: textColor),
+              borderRadius: BorderRadius.circular(100),
+            ),
+            prefixIcon: const Icon(Icons.lock, color: textColor),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureText ? Icons.visibility : Icons.visibility_off,
+                color: textColor,
+              ),
+              onPressed: () {
+                setState(() {
+                  _obscureText = !_obscureText;
+                });
+              },
+            ),
+          ),
+          obscureText: _obscureText,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, ingresa tu contraseña';
+            } else if (value.length < 6) {
+              return 'La contraseña debe tener al menos 6 caracteres';
+            }
+            return null;
+          },
+        );
       },
     );
   }
